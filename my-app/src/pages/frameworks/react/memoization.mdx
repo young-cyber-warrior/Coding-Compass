@@ -1,0 +1,337 @@
+import { Tabs } from 'nextra/components'
+
+# Мемоизация
+
+## Что такое мемоизация?
+
+`Мемоизация (Кэш)` — пример использования кэша при разработке программного обеспечения, в программировании сохранение результатов выполнения функций для предотвращения повторных вычислений.
+Это один из способов оптимизации, применяемый для увеличения скорости выполнения компьютерных программ. Перед вызовом функции проверяется, вызывалась ли функция ранее
+([мемоизация](https://ru.wikipedia.org/wiki/%D0%9C%D0%B5%D0%BC%D0%BE%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F)).
+
+**Как выглядит мемоизация в react? (обновим наши знания)**
+
+Мемоизация в React используется для улучшения производительности пользовательского интерфейса путем кэширования результатов вычислений и предотвращения повторного выполнения одних и тех же дорогостоящих операций при повторном рендеринге.
+В React мемоизация может быть достигнута с использованием React.memo, useMemo и useCallback.
+
+`React.memo` - это компонент высшего порядка, который позволяет кэшировать результаты рендеринга компонента и повторно использовать их при следующих рендерингах, если пропсы компонента не изменились.
+
+`useMemo` - это хук, который позволяет мемоизировать результат выполнения функции, сохраняя его между рендерами компонента. Он возвращает мемоизированный результат, которая изменяется только при изменении одного из её зависимостей.
+
+`useCallback` - это ещё один хук в React, который используется для мемоизации колбэк-функций. Он возвращает мемоизированную версию колбэк-функции, которая изменяется только при изменении одного из её зависимостей.
+
+**Что же происходит при первом рендоре?**
+
+Когда компонент впервые монтируется то происходит следующее:
+
+`useMemo` - будет проинициализирован кэш, выделена дополнительная память и возвращен кэшированный результат.
+
+`useCallback` - будет проинициализирован кэш, выделена дополнительная память и возвращен кэшированный коллбек.
+
+`memo` - будет запомнен результат функции и props, и при последующем повторном рендере (если пропсы не изменились) используется закэшированный результат, вместо того чтобы вызывать сам компонент повторно.
+
+## Как мы можем использовать мемоизацию в react?
+
+### useCallback и useMemo
+
+-  Список зависимостей.
+
+```tsx
+const Component = ({ data }) => {
+  const submit = useCallback(() => {
+    //
+  }, [])
+
+  const filteredImages = useMemo(() => {
+    //
+  }, [data])
+
+  const items = useCustomHook(submit, filteredImages)
+
+  useEffect(() => {
+    // submit and images мемоизируются, поэтому useEffect не будет запускаться при каждом повторном рендеринге
+  }, [submit, filteredImages])
+
+  return //  JSX;
+}
+```
+-  Сложные вычисления.
+
+Прежде всего, что такое "сложные вычисления"? Является ли конкатенация строк дорогостоящей операцией? Или сортировка массива из 300 элементов? Или выполнение регулярного выражения в тексте из 5000 слов? Я не знаю. И вы не знаете. И никто не знает, пока это не будет реально измерено.
+Вот немного надуманный пример. К нам приходит список пользователей (около 1000), и нам нужно показать две колонки: в первой будут пользователи до 30 лет, а во второй — старше
+
+```tsx
+const Component = ({ users }) => {
+  const { overThirty, underThirty } = filterUsers(users)
+  return //  JSX;
+}
+```
+
+Эта реализация подходит в том случае, если компонент будет рендериться только при обновлении пропсов. В противном случае в компоненте каждый раз будут выполняться "сложные вычисления" для вычисления одного и того же значения, и это может быть довольно медленно.
+Но можно сделать так, чтобы нам никогда не приходилось вычислять одно и то же значение дважды подряд, и здесь useMemo нам поможет.
+
+```tsx
+const Component = ({ users }) => {
+  const { overThirty, underThirty } = useMemo(() => filterUsers(users), [users])
+
+  return // JSX;
+}
+```
+
+### React.memo
+
+-  Как его использовать.
+
+```tsx
+const Child = ({ data, onChange }) => {}
+const ChildMemo = React.memo(Child)
+
+const Component = () => {
+  const data = useMemo(() => {
+    //
+  }, [])
+
+  const handleClick = useCallback(() => {
+    //
+  }, [])
+
+  // data и handleClick теперь имеют стабильную ссылку
+  // повторный рендеринг ChildMemo будет предотвращен
+
+  return <ChildMemo data={data} onClick={handleClick} />
+}
+```
+-  Также мы можем добавить свою проверку в React.memo для пропсов.
+
+```tsx
+function parentPropsAreEqual(prev, next) {
+  return // проверка пропсов
+}
+
+const Child = ({ data, onChange }) => {}
+const ChildMemo = React.memo(Child, parentPropsAreEqual)
+```
+Но убедиться, что все пропсы запомнены, не так просто, как кажется. Во многих случаях мы делаем это неправильно! И всего одна-единственная ошибка приводит к сломанной проверке пропсов, и, как следствие, каждый React.memo, useCallback и useMemo становится совершенно бесполезными.
+
+### Кастомный хук
+
+-  Мемоизация возращаемых данных.
+
+Часто бывает, что возвращаемые данные из хука могут использоваться в массиве зависимостей у других хуков. Поэтомy стоит возвращать стабильную ссылку из хука.
+
+```tsx
+export function useTimeout() {
+  const run = useCallback(
+    () => (handler: () => void, timeoutTime?: number) => {
+      //
+    },
+    [],
+  )
+
+  const clear = useCallback(() => {
+    //
+  }, [])
+
+  return useMemo(
+    () => ({
+      run,
+      clear,
+    }),
+    [clear, run],
+  )
+}
+```
+-  Стоит избегать лишней мемоизации, если есть такая возможность.
+
+```tsx
+export function useTimeout() {
+  return useMemo(
+    () => ({
+      run: () => {
+        //
+      },
+      clear: () => {
+        //
+      },
+    }),
+    [],
+  )
+}
+```
+-  Кэширование входящих данных.
+
+При повторном рендере компонента хук будет каждый раз получать новые пропсы. Если они не будут мемоизированы в компоненте, то мемоизация будет нарушена, и смысла в ней не будет. Одно из решений — кеширование входящих данных.
+
+```tsx
+export const useInterval = (handler, delay): ReturnType => {
+  const handlerRef = useRef(handler)
+  const delayRef = useRef(delay)
+  const intervalId = useRef(null)
+
+  useLayoutEffect(() => {
+    handlerRef.current = handler
+    delayRef.current = delay
+  })
+
+  const manageInterval = useMemo(() => {
+    const start = () => {
+      if (delayRef.current !== null) {
+        intervalId.current = setInterval(
+          () => handlerRef.current(),
+          delayRef.current,
+        )
+      }
+    }
+
+    const clear = () => {
+      if (intervalId.current !== null) {
+        clearTimeout(intervalId.current)
+      }
+    }
+
+    return {
+      start,
+      clear,
+      reset: () => {
+        clear()
+        start()
+      },
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => manageInterval.clear()
+  }, [manageInterval])
+
+  return manageInterval
+}
+```
+## Примеры бессмысленной мемоизации в react
+
+В данном случае нет смысла использовать useCallback, так как компонент Child будет перерендериваться при обновлении состояния или пропсов
+
+```tsx
+const Child = ({ onClick, disabled, hovered }) => {
+  const amountRender = React.useRef(0)
+  React.useLayoutEffect(() => {
+    amountRender.current += 1
+  })
+
+  return <div>Re-render child {amountRender.current}</div>
+}
+
+export const Parent = ({ disabled, hovered }) => {
+  const [state, setState] = React.useState(0)
+
+  const handleClick = useCallback(() => {
+    //
+  }, [])
+
+  return (
+    <div className="body">
+      <div className="container">
+        <Children onClick={handleClick} disabled={disabled} hovered={hovered} />
+        <button onClick={() => setState((prev) => prev + 1)}>Click me</button>
+      </div>
+    </div>
+  )
+}
+```
+
+Нет смысла оборачивать в useCallback и useMemo
+
+```tsx
+const Component = ({ type, isEnabled, onClick }) => {
+  const handleClick = React.useCallback(() => {
+    //
+  }, [isEnabled, onClick])
+
+  const styles = useMemo(() => {
+    //
+  }, [])
+
+  return <div onClick={handleClick} style={styles} />
+}
+```
+
+В данном случает нет смысла в useCallback, useMemo и memo так как ChildMemo принимает компонет компонет это ведь простой обьект с необходимвми свойстами [what is element](https://react.dev/reference/react/createElement#:~:text=LEGACY%20REACT%20APIS-,createElement,-createElement%20lets%20you)
+и так как каждый раз при ре-рендоре будет создаваться новая ветка виртуального дерева, то memo будет бесполезно.
+
+```tsx
+const Freind = () => {
+  return // some JSX;
+}
+
+const Child = ({ children, items, onClick }) => {
+  return (
+    <div className="">
+      {children}
+      {items.map((element) => {
+        return <div className="">{element}</div>
+      })}
+    </div>
+  )
+}
+
+const ChildMemo = memo(Child)
+
+const Parent = () => {
+  const handleClick = useCallback(() => {}, [])
+  const items = useMemo(() => {}, [])
+
+  return (
+    <div>
+      <ChildMemo onClick={handleClick} items={items}>
+        <Freind />
+      </ChildMemo>
+    </div>
+  )
+}
+```
+
+Чтобы это исправить, нам нужно запомнить children
+
+```tsx
+const Freind = () => {
+    return // some JSX;
+};
+
+const Parent = () => {
+    const content = useMemo(() => <Freind />, []);
+    // или
+    const content = useCallback(() => <Freind />, []);
+
+    const handleOnClick = useCallback(() => {}, []);
+    const items = useMemo(() => {}, []);
+
+    return (
+        <div>
+            <ChildMemo onClick={handleOnClick} items={items}>
+                {content}
+            </ChildMemo>
+        </div>
+    );
+};
+```
+
+Вы подумаете а почему не React.memo
+
+```tsx
+const ChildMemo = React.memo(Child)
+const ParentMemo = React.memo(Parent)
+
+const Component = () => {
+  return (
+    <ParentMemo>
+      <ChildMemo />
+    </ParentMemo>
+  )
+}
+```
+
+ParentMemo будет вести себя так, как будто он не обернут в React.memo - его дети на самом деле не мемоизированы! ParentMemo принимает ChildMemo - это просто объект с типом, указывающим на компонент, и он не мемоизирован сам по себе. Итак, еще раз, с точки зрения мемоизации и пропсов, у нас есть компонент ParentMemo, у которого есть дочерний пропс, содержащий не мемоизированный объект. Следовательно, мемоизация в ParentMemo нарушена.
+
+[Рекомендации как можно обойтись без React.memo](https://overreacted.io/before-you-memo/)
+
+## Итого
+
+**Всегда стоит измерять производительность перед тем, как применять мемоизацию.** В некоторых случаях мемоизация может улучшить производительность React-приложений, особенно если в приложении много компонентов или если у них много данных для обработки. Однако стоит учитывать, что при мемоизации происходит выполнение дополнительной логики, выделение памяти и зачастую усложнение кода..
