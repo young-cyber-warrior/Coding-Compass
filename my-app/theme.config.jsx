@@ -11,7 +11,7 @@ export default {
                 />
             </svg>
             <span style={{ marginLeft: '.4em', fontWeight: 800 }}>
-                Some words about develops
+                Some words about dev
             </span>
         </>
     ),
