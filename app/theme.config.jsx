@@ -11,7 +11,7 @@ export default {
                 />
             </svg>
             <span style={{ marginLeft: '.4em', fontWeight: 800 }}>
-                Some words about dev
+                Coding Compass
             </span>
         </>
     ),
@@ -50,7 +50,7 @@ export default {
     },
     useNextSeoProps() {
         return {
-            titleTemplate: '%s – SWR',
+            titleTemplate: '%s',
         };
     },
 
