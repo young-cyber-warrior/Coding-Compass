@@ -16,7 +16,7 @@ export default {
         </>
     ),
     project: {
-        link: 'https://github.com/Biven160690',
+        link: "https://github.com/young-cyber-warrior",
         icon: (
             <svg
                 width="32"
@@ -55,7 +55,7 @@ export default {
     },
 
     feedback: {
-        useLink: () => 'https://github.com/Biven160690',
+        useLink: () => "https://github.com/young-cyber-warrior",
     },
     darkMode: false,
     editLink: {
@@ -65,8 +65,11 @@ export default {
         text: (
             <span>
                 {new Date().getFullYear()} ©{' '}
-                <a href="https://github.com/Biven160690" target="_blank">
-                    biven
+                <a
+                    href="https://github.com/young-cyber-warrior"
+                    target="_blank"
+                >
+                    young-cyber-warrior
                 </a>
             </span>
         ),
