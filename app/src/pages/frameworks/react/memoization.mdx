@@ -127,7 +127,7 @@ const ChildMemo = React.memo(Child, parentPropsAreEqual);
 ```tsx
 export function useTimeout() {
     const run = useCallback(
-        () => (handler: () => void, timeoutTime?: number) => {
+        () => {
             //
         },
         []
@@ -165,7 +165,7 @@ export function useTimeout() {
 }
 ```
 
--   Если по каким-то причинам не удается определить данные внутри возвращаемого useMemo, имеет смысл дополнительно мемоизировать ссылочные типы данных, поскольку при их использовании вы будете обращаться к новой ссылке.
+-   Если по каким-то причинам не удается определить данные внутри возвращаемого useMemo, имеет смысл дополнительно мемоизировать ссылочные типы данных, поскольку при перерендоре хука в массиве зависимостей useMemo будет новая ссылка и useMemo вернет новый обьект  
 
 ```tsx
 const useCarsAmount = () => {
@@ -204,7 +204,7 @@ function App() {
     const handleClickMinus = () =>
         setValue((prev) => (prev === 0 ? 0 : prev - 1));
 
-    // При повторном рендере, если не мемоизировать previous и updateCount, будет создаваться новая ссылка.
+    // При повторном рендере, если не мемоизировать previous и updateCount, будет возращаться каждый раз новый обьект.
     const { previous, updateCount } = useCarsAmount();
 
     return (
