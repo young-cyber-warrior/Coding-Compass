@@ -1,0 +1,115 @@
+# Контекст
+
+## Разделение состояний и действий
+
+Когда мы разрабатываем приложения на React, работа с состоянием часто становится важной задачей. useContext предоставляет удобный способ передачи состояния между компонентами без необходимости передавать его через цепочку пропсов.
+В некоторых случаях может быть полезно разделить состояние и функции его обновления на отдельные контексты, чтобы обеспечить более гибкое управление рендерингом компонентов. Такой подход позволяет компонентам, которым нужны только данные или только функции для изменения состояния, подписываться на изменения именно тех контекстов, которые они используют.
+
+**Обновление компонента, которому не нужно состояние.**
+
+Предположим, у вас есть компоненты, которые используют только данные из контекста, и другие компоненты, которые используют только функции для изменения этих данных.
+Если вы передадите в контекст один объект, содержащий и данные, и функции для их изменения, то любое обновление этого объекта приведет к повторному рендерингу всех компонентов, даже тех, которые не зависят от изменяемых данных.
+Чтобы избежать ненужных перерисовок компонентов, можно разделить контекст на два: один для состояния, а другой для действий, которые изменяют это состояние. Это позволит обновлять один контекст без воздействия на другой.
+Рассмотрим пример кода.
+
+```tsx
+import React, { createContext, PropsWithChildren } from 'react';
+
+export type ProgressionData = {
+    delta: number;
+    resources: Resources;
+};
+
+export const ProgressionDataContext = createContext<ProgressionData | null>(
+    null
+);
+
+export function useProgressionData() {
+    const context = React.useContext(ProgressionData);
+
+    if (context === null) {
+        throw new Error(
+            'You can use useProgressionData only with resources component'
+        );
+    }
+
+    return context;
+}
+
+export type ProgressionActions = {
+    updateResource: (selectedResource: number) => void;
+    updateDelta: (delta: number) => void;
+};
+
+export const ProgressionActionsContext =
+    createContext<ProgressionActions | null>(null);
+
+export function useProgressionActions() {
+    const context = React.useContext(ProgressionActions);
+
+    if (context === null) {
+        throw new Error(
+            'You can use useProgressionActions only with resources component'
+        );
+    }
+
+    return context;
+}
+
+export const ProgressionProvider = ({ children }: Props) => {
+    const [resources, setResources] = React.useState<Resources>({});
+    const [delta, setDelta] = React.useState<number>(0);
+
+    const updateResource = React.useCallback(
+        (selectedResource: number) => {
+            setResources(//...some logic)
+        },
+        [setResources]
+    );
+
+    const updateDelta = React.useCallback(
+        (delta: number) => {
+            setDelta(//...some logic);
+        },
+        [setResources]
+    );
+
+    const value = React.useMemo(
+        (): ProgressionData => ({
+            resources,
+            delta,
+        }),
+        [delta, resources]
+    );
+
+    const actions = React.useMemo(
+        (): ProgressionActions => ({
+            updateDelta,
+            updateResource,
+        }),
+        [updateDelta, updateResource]
+    );
+
+    return (
+        <ProgressionDataContext.Provider value={value}>
+            <ProgressionActionsContext.Provider
+                value={actions}
+            >
+                {children}
+            </ProgressionActionsContext.Provider>
+        </ProgressionDataContext.Provider>
+    );
+};
+
+```
+
+В этом примере мы используем два отдельных контекста: один для состояния (ProgressionDataContext) и один для функций (ProgressionActionsContext). Это позволяет компонентам подписываться только на тот контекст, который им действительно нужен:
+
+- Компоненты, которым нужно только состояние (например, resources и delta), будут подписаны на ProgressionDataContext.
+- Компоненты, которые вызывают функции для обновления состояния, будут подписаны на ProgressionActionsContext.
+
+Когда вы обновляете состояние (например, изменяете значение delta или resources), React гарантирует, что только те компоненты, которые используют состояние, будут перерисованы. Компоненты, которые используют только функции, не будут затронуты, так как контекст с функциями не обновлялся.
+
+## Итого
+
+Разделение состояния и действий в контексте React позволяет существенно улучшить производительность и поддерживаемость приложения. При использовании useContext, важно минимизировать ненужные перерисовки компонентов, которые не зависят от изменения состояния. Разделив состояние и функции обновления состояния на отдельные контексты, мы можем более эффективно управлять компонентами и контролировать рендеринг, что особенно полезно в крупных приложениях.
