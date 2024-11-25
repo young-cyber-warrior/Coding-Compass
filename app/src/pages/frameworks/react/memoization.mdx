@@ -19,16 +19,6 @@ import { Tabs } from 'nextra/components';
 
 `useCallback` - это ещё один хук в React, который используется для мемоизации колбэк-функций. Он возвращает мемоизированную версию колбэк-функции, которая изменяется только при изменении одного из её зависимостей.
 
-**Что же происходит при первом рендоре?**
-
-Когда компонент впервые монтируется то происходит следующее:
-
-`useMemo` - будет проинициализирован кэш, выделена дополнительная память и возвращен кэшированный результат.
-
-`useCallback` - будет проинициализирован кэш, выделена дополнительная память и возвращен кэшированный коллбек.
-
-`memo` - будет запомнен результат функции и props, и при последующем повторном рендере (если пропсы не изменились) используется закэшированный результат, вместо того чтобы вызывать сам компонент повторно.
-
 ## Как мы можем использовать мемоизацию в react?
 
 ### useCallback и useMemo
@@ -81,9 +71,20 @@ const Component = ({ users }) => {
 };
 ```
 
+-  Сохрание ссылки
+
+```tsx
+const Component = ({ users }) => {
+     const submit = useCallback(() => {
+        //
+    }, []);
+    return <Component  onClick={submit} />
+};
+```
+
 ### React.memo
 
--   Как его использовать.
+Для правильной работы memo следует передавать в качестве пропсов примитивные типы данных или мемоизировать имутабельные
 
 ```tsx
 const Child = ({ data, onChange }) => {};
@@ -223,58 +224,32 @@ function App() {
 }
 ```
 
--   Кэширование входящих данных.
+- Мемоизация входящих аргументов для хука.
 
-При повторном рендере компонента хук будет каждый раз получать новые пропсы. Если они не будут мемоизированы в компоненте, то мемоизация будет нарушена, и смысла в ней не будет. Одно из решений — кеширование входящих данных.
+Всегда стоит обращать внимание на аргументы, которые передаёшь в кастомный хук, так как они могут быть в зависимостях у других хуков, что может привести к нарушению мемоизации.
 
 ```tsx
-export const useInterval = (handler, delay): ReturnType => {
-    const handlerRef = useRef(handler);
-    const delayRef = useRef(delay);
-    const intervalId = useRef(null);
+const args = React.useMemo(() => ({ paramId: id }), [id])
 
-    useLayoutEffect(() => {
-        handlerRef.current = handler;
-        delayRef.current = delay;
-    });
+const tooltip = useTooltip(
+    resId,
+    contentId,
+    args,
+)
 
-    const manageInterval = useMemo(() => {
-        const start = () => {
-            if (delayRef.current !== null) {
-                intervalId.current = setInterval(
-                    () => handlerRef.current(),
-                    delayRef.current
-                );
-            }
-        };
+export function useTooltip(resId = 0, contentId, decoratorId, disabled, args, showDelay = 400 : UseTooltipParams) {
+    const content= useMemo(() => {
 
-        const clear = () => {
-            if (intervalId.current !== null) {
-                clearTimeout(intervalId.current);
-            }
-        };
+        // some logic
 
-        return {
-            start,
-            clear,
-            reset: () => {
-                clear();
-                start();
-            },
-        };
-    }, []);
+    }, [args])
+}
 
-    useEffect(() => {
-        return () => manageInterval.clear();
-    }, [manageInterval]);
-
-    return manageInterval;
-};
 ```
 
 ## Примеры бессмысленной мемоизации в react
 
-В данном случае нет смысла использовать useCallback, так как компонент Child будет перерендериваться при обновлении состояния или пропсов
+В данном случае нет смысла использовать useCallback, так как компонент Child будет перерендериваться при обновлении состояния или пропсов и сам компонент немемоизирован
 
 ```tsx
 const Child = ({ onClick, disabled, hovered }) => {
@@ -310,7 +285,7 @@ export const Parent = ({ disabled, hovered }) => {
 };
 ```
 
-Нет смысла оборачивать в useCallback и useMemo
+Нет смысла оборачивать в useCallback и useMemo так как мы просто передаем в div
 
 ```tsx
 const Component = ({ type, isEnabled, onClick }) => {
