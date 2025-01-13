@@ -1,4 +1,4 @@
-import { Tabs } from 'nextra/components';
+import { Tabs } from "nextra/components";
 
 # Мемоизация
 
@@ -23,37 +23,37 @@ import { Tabs } from 'nextra/components';
 
 ### useCallback и useMemo
 
--   Список зависимостей.
+- Список зависимостей.
 
 ```tsx
 const Component = ({ data }) => {
-    const submit = useCallback(() => {
-        //
-    }, []);
+  const submit = useCallback(() => {
+    //
+  }, []);
 
-    const filteredImages = useMemo(() => {
-        //
-    }, [data]);
+  const filteredImages = useMemo(() => {
+    //
+  }, [data]);
 
-    const items = useCustomHook(submit, filteredImages);
+  const items = useCustomHook(submit, filteredImages);
 
-    useEffect(() => {
-        // submit and images мемоизируются, поэтому useEffect не будет запускаться при каждом повторном рендеринге
-    }, [submit, filteredImages]);
+  useEffect(() => {
+    // submit and images мемоизируются, поэтому useEffect не будет запускаться при каждом повторном рендеринге
+  }, [submit, filteredImages]);
 
-    return; //  JSX;
+  return; //  JSX;
 };
 ```
 
--   Сложные вычисления.
+- Сложные вычисления.
 
 Прежде всего, что такое "сложные вычисления"? Является ли конкатенация строк дорогостоящей операцией? Или сортировка массива из 300 элементов? Или выполнение регулярного выражения в тексте из 5000 слов? Я не знаю. И вы не знаете. И никто не знает, пока это не будет реально измерено.
 Вот немного надуманный пример. К нам приходит список пользователей (около 1000), и нам нужно показать две колонки: в первой будут пользователи до 30 лет, а во второй — старше
 
 ```tsx
 const Component = ({ users }) => {
-    const { overThirty, underThirty } = filterUsers(users);
-    return; //  JSX;
+  const { overThirty, underThirty } = filterUsers(users);
+  return; //  JSX;
 };
 ```
 
@@ -62,24 +62,58 @@ const Component = ({ users }) => {
 
 ```tsx
 const Component = ({ users }) => {
-    const { overThirty, underThirty } = useMemo(
-        () => filterUsers(users),
-        [users]
-    );
+  const { overThirty, underThirty } = useMemo(
+    () => filterUsers(users),
+    [users]
+  );
 
-    return; // JSX;
+  return; // JSX;
 };
 ```
 
--  Сохрание ссылки
+- Сохрание ссылки
 
 ```tsx
 const Component = ({ users }) => {
-     const submit = useCallback(() => {
-        //
-    }, []);
-    return <Component  onClick={submit} />
+  const submit = useCallback(() => {
+    //
+  }, []);
+  return <Component onClick={submit} />;
 };
+```
+
+- Ключевой момент: ссылочная идентичность.
+  Самое важное в понимании мемоизации - это работа со ссылками. При неизменных входных данных хук будет возращать всегда ту же самую ссылку:
+
+```tsx
+function ParentComponent() {
+  const [count, setCount] = useState(0);
+
+  // Без мемоизации - новая ссылка каждый рендер
+  const regularObject = { data: "test" };
+
+  // С мемоизацией - та же ссылка при неизменных зависимостях
+  const memoizedObject = useMemo(() => ({ data: "test" }), []);
+
+  // С мемоизацией - та же ссылка при неизменных зависимостях
+  const memoizedHandleClick = useCallback(() => {
+    onUpdate(data);
+  }, [data, onUpdate]);
+
+  // Без мемоизации - новая ссылка каждый рендер
+  const handleClick = () => {
+    onUpdate(data);
+  };
+
+  return (
+    <ChildComponent
+      regularProp={regularObject} // Вызовет ререндер
+      memoizedProp={memoizedObject} // Не вызовет ререндер
+      onClick={handleClick} // Вызовет ререндер
+      memoizedHandleClick={memoizedHandleClick} // Не вызовет ререндер
+    />
+  );
+}
 ```
 
 ### React.memo
@@ -91,26 +125,26 @@ const Child = ({ data, onChange }) => {};
 const ChildMemo = React.memo(Child);
 
 const Component = () => {
-    const data = useMemo(() => {
-        //
-    }, []);
+  const data = useMemo(() => {
+    //
+  }, []);
 
-    const handleClick = useCallback(() => {
-        //
-    }, []);
+  const handleClick = useCallback(() => {
+    //
+  }, []);
 
-    // data и handleClick теперь имеют стабильную ссылку
-    // повторный рендеринг ChildMemo будет предотвращен
+  // data и handleClick теперь имеют стабильную ссылку
+  // повторный рендеринг ChildMemo будет предотвращен
 
-    return <ChildMemo data={data} onClick={handleClick} />;
+  return <ChildMemo data={data} onClick={handleClick} />;
 };
 ```
 
--   Также мы можем добавить свою проверку в React.memo для пропсов.
+- Также мы можем добавить свою проверку в React.memo для пропсов.
 
 ```tsx
 function parentPropsAreEqual(prev, next) {
-    return; // проверка пропсов
+  return; // проверка пропсов
 }
 
 const Child = ({ data, onChange }) => {};
@@ -121,106 +155,103 @@ const ChildMemo = React.memo(Child, parentPropsAreEqual);
 
 ### Кастомный хук
 
--   Мемоизация возращаемых данных.
+- Мемоизация возращаемых данных.
 
 Часто бывает, что возвращаемые данные из хука могут использоваться в массиве зависимостей у других хуков. Поэтомy стоит возвращать стабильную ссылку из хука.
 
 ```tsx
 export function useTimeout() {
-    const run = useCallback(
-        () => {
-            //
-        },
-        []
-    );
+  const run = useCallback(() => {
+    //
+  }, []);
 
-    const clear = useCallback(() => {
-        //
-    }, []);
+  const clear = useCallback(() => {
+    //
+  }, []);
 
-    return useMemo(
-        () => ({
-            run,
-            clear,
-        }),
-        [clear, run]
-    );
+  return useMemo(
+    () => ({
+      run,
+      clear,
+    }),
+    [clear, run]
+  );
 }
 ```
 
--   Стоит избегать лишней мемоизации, если есть такая возможность.
+- Стоит избегать лишней мемоизации, если есть такая возможность.
 
 ```tsx
 export function useTimeout() {
-    return useMemo(
-        () => ({
-            run: () => {
-                //
-            },
-            clear: () => {
-                //
-            },
-        }),
-        []
-    );
+  return useMemo(
+    () => ({
+      run: () => {
+        //
+      },
+      clear: () => {
+        //
+      },
+    }),
+    []
+  );
 }
 ```
 
--   Если по каким-то причинам не удается определить данные внутри возвращаемого useMemo, имеет смысл дополнительно мемоизировать ссылочные типы данных, поскольку при перерендоре хука в массиве зависимостей useMemo будет новая ссылка и useMemo вернет новый обьект  
+- Если по каким-то причинам не удается определить данные внутри возвращаемого useMemo, имеет смысл дополнительно мемоизировать ссылочные типы данных, поскольку при перерендоре хука в массиве зависимостей useMemo будет новая ссылка и useMemo вернет новый обьект
 
 ```tsx
 const useCarsAmount = () => {
-    const [count, setCount] = React.useState(0);
+  const [count, setCount] = React.useState(0);
 
-    const previous = useMemo(() => {
-        if (prevValue === undefined || prevMax === undefined) {
-            return undefined;
-        }
+  const previous = useMemo(() => {
+    if (prevValue === undefined || prevMax === undefined) {
+      return undefined;
+    }
 
-        return {
-            value: prevValue,
-            maxValue: prevMax,
-            percentage: prevValue / prevMax,
-        };
-    }, [prevValue, prevMax]);
+    return {
+      value: prevValue,
+      maxValue: prevMax,
+      percentage: prevValue / prevMax,
+    };
+  }, [prevValue, prevMax]);
 
-    const updateCount = useCallback(() => {
-        //
-    }, []);
+  const updateCount = useCallback(() => {
+    //
+  }, []);
 
-    return React.useMemo(
-        () => ({
-            previous,
-            updateCount,
-        }),
-        [previous, updateCount]
-    );
+  return React.useMemo(
+    () => ({
+      previous,
+      updateCount,
+    }),
+    [previous, updateCount]
+  );
 };
 
 function App() {
-    const [value, setValue] = React.useState(0);
+  const [value, setValue] = React.useState(0);
 
-    const handleClickPlus = () => setValue((prev) => prev + 1);
+  const handleClickPlus = () => setValue((prev) => prev + 1);
 
-    const handleClickMinus = () =>
-        setValue((prev) => (prev === 0 ? 0 : prev - 1));
+  const handleClickMinus = () =>
+    setValue((prev) => (prev === 0 ? 0 : prev - 1));
 
-    // При повторном рендере, если не мемоизировать previous и updateCount, будет возращаться каждый раз новый обьект.
-    const { previous, updateCount } = useCarsAmount();
+  // При повторном рендере, если не мемоизировать previous и updateCount, будет возращаться каждый раз новый обьект.
+  const { previous, updateCount } = useCarsAmount();
 
-    return (
-        <div>
-            {value}
-            <div className="block">
-                <button onClick={handleClickPlus} id="1" className="button">
-                    +
-                </button>
-                <button onClick={handleClickMinus} id="2" className="button">
-                    -
-                </button>
-            </div>
-        </div>
-    );
+  return (
+    <div>
+      {value}
+      <div className="block">
+        <button onClick={handleClickPlus} id="1" className="button">
+          +
+        </button>
+        <button onClick={handleClickMinus} id="2" className="button">
+          -
+        </button>
+      </div>
+    </div>
+  );
 }
 ```
 
@@ -253,35 +284,29 @@ export function useTooltip(resId = 0, contentId, decoratorId, disabled, args, sh
 
 ```tsx
 const Child = ({ onClick, disabled, hovered }) => {
-    const amountRender = React.useRef(0);
-    React.useLayoutEffect(() => {
-        amountRender.current += 1;
-    });
+  const amountRender = React.useRef(0);
+  React.useLayoutEffect(() => {
+    amountRender.current += 1;
+  });
 
-    return <div>Re-render child {amountRender.current}</div>;
+  return <div>Re-render child {amountRender.current}</div>;
 };
 
 export const Parent = ({ disabled, hovered }) => {
-    const [state, setState] = React.useState(0);
+  const [state, setState] = React.useState(0);
 
-    const handleClick = useCallback(() => {
-        //
-    }, []);
+  const handleClick = useCallback(() => {
+    //
+  }, []);
 
-    return (
-        <div className="body">
-            <div className="container">
-                <Children
-                    onClick={handleClick}
-                    disabled={disabled}
-                    hovered={hovered}
-                />
-                <button onClick={() => setState((prev) => prev + 1)}>
-                    Click me
-                </button>
-            </div>
-        </div>
-    );
+  return (
+    <div className="body">
+      <div className="container">
+        <Children onClick={handleClick} disabled={disabled} hovered={hovered} />
+        <button onClick={() => setState((prev) => prev + 1)}>Click me</button>
+      </div>
+    </div>
+  );
 };
 ```
 
@@ -289,15 +314,15 @@ export const Parent = ({ disabled, hovered }) => {
 
 ```tsx
 const Component = ({ type, isEnabled, onClick }) => {
-    const handleClick = React.useCallback(() => {
-        //
-    }, [isEnabled, onClick]);
+  const handleClick = React.useCallback(() => {
+    //
+  }, [isEnabled, onClick]);
 
-    const styles = useMemo(() => {
-        //
-    }, []);
+  const styles = useMemo(() => {
+    //
+  }, []);
 
-    return <div onClick={handleClick} style={styles} />;
+  return <div onClick={handleClick} style={styles} />;
 };
 ```
 
@@ -306,33 +331,33 @@ const Component = ({ type, isEnabled, onClick }) => {
 
 ```tsx
 const Freind = () => {
-    return; // some JSX;
+  return; // some JSX;
 };
 
 const Child = ({ children, items, onClick }) => {
-    return (
-        <div className="">
-            {children}
-            {items.map((element) => {
-                return <div className="">{element}</div>;
-            })}
-        </div>
-    );
+  return (
+    <div className="">
+      {children}
+      {items.map((element) => {
+        return <div className="">{element}</div>;
+      })}
+    </div>
+  );
 };
 
 const ChildMemo = memo(Child);
 
 const Parent = () => {
-    const handleClick = useCallback(() => {}, []);
-    const items = useMemo(() => {}, []);
+  const handleClick = useCallback(() => {}, []);
+  const items = useMemo(() => {}, []);
 
-    return (
-        <div>
-            <ChildMemo onClick={handleClick} items={items}>
-                <Freind />
-            </ChildMemo>
-        </div>
-    );
+  return (
+    <div>
+      <ChildMemo onClick={handleClick} items={items}>
+        <Freind />
+      </ChildMemo>
+    </div>
+  );
 };
 ```
 
@@ -340,24 +365,22 @@ const Parent = () => {
 
 ```tsx
 const Freind = () => {
-    return; // some JSX;
+  return; // some JSX;
 };
 
 const Parent = () => {
-    const content = useMemo(() => <Freind />, []);
-    // или
-    const content = useCallback(() => <Freind />, []);
+  const content = useMemo(() => <Freind />, []);
 
-    const handleOnClick = useCallback(() => {}, []);
-    const items = useMemo(() => {}, []);
+  const handleOnClick = useCallback(() => {}, []);
+  const items = useMemo(() => {}, []);
 
-    return (
-        <div>
-            <ChildMemo onClick={handleOnClick} items={items}>
-                {content}
-            </ChildMemo>
-        </div>
-    );
+  return (
+    <div>
+      <ChildMemo onClick={handleOnClick} items={items}>
+        {content}
+      </ChildMemo>
+    </div>
+  );
 };
 ```
 
@@ -368,15 +391,16 @@ const ChildMemo = React.memo(Child);
 const ParentMemo = React.memo(Parent);
 
 const Component = () => {
-    return (
-        <ParentMemo>
-            <ChildMemo />
-        </ParentMemo>
-    );
+  return (
+    <ParentMemo>
+      <ChildMemo />
+    </ParentMemo>
+  );
 };
 ```
 
 ParentMemo будет вести себя так, как будто он не обернут в React.memo - его дети на самом деле не мемоизированы! ParentMemo принимает ChildMemo - это просто объект с типом, указывающим на компонент, и он не мемоизирован сам по себе. Итак, еще раз, с точки зрения мемоизации и пропсов, у нас есть компонент ParentMemo, у которого есть дочерний пропс, содержащий не мемоизированный объект. Следовательно, мемоизация в ParentMemo нарушена.
+
 
 [Рекомендации как можно обойтись без React.memo](https://overreacted.io/before-you-memo/)
 
